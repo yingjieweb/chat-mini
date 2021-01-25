@@ -1,19 +1,28 @@
+//index.js
 const app = getApp()
 
 Page({
   data: {
     avatarUrl: './user-unlogin.png',
     userInfo: {},
-    messages: [],
-    inputValue: '',
-    isLoggin: false
+    logged: false,
+    takeSession: false,
+    requestResult: ''
   },
 
   onLoad: function() {
+    if (!wx.cloud) {
+      wx.redirectTo({
+        url: '../chooseLib/chooseLib',
+      })
+      return
+    }
+
     // 获取用户信息
     wx.getSetting({
       success: res => {
-        if (res.authSetting['scope.userInfo']) { // 已授权，可直接调用 getUserInfo 获取头像昵称，不会弹框
+        if (res.authSetting['scope.userInfo']) {
+          // 已经授权，可以直接调用 getUserInfo 获取头像昵称，不会弹框
           wx.getUserInfo({
             success: res => {
               this.setData({
@@ -22,82 +31,88 @@ Page({
               })
             }
           })
-          console.log('已经授权')
-          this.setData({isLoggin: true})
         }
       }
     })
-
-    const db = wx.cloud.database()
-    app.globalData.watcher = db.collection('chat')
-      .orderBy('createdAt', 'desc')
-      .watch({
-        onChange: snapshot => {
-          console.log('hello')
-          console.log(snapshot)
-          if(snapshot.docChanges.length > 0) {
-            snapshot.docChanges.filter(docChange => docChange.dataType === 'add').forEach(docChange => {
-              this.data.messages.unshift(docChange.doc)
-              this.setData({messages: this.data.messages})
-            })
-          }
-        },
-        onError: (err) => {
-          console.err('watch error', err)
-        }
-      })
-
-    wx.cloud.callFunction({
-      name: 'getChats', // 云函数名称，类似调用后端接口
-    })
-      .then(res => {
-        console.log(res.result)
-        this.setData({
-          messages: res.result.data
-        })
-      })
-      .catch(console.error)
   },
 
-  bindGetUserInfo: function(e) {
-    console.log('get info', e)
+  onGetUserInfo: function(e) {
+    if (!this.data.logged && e.detail.userInfo) {
       this.setData({
+        logged: true,
         avatarUrl: e.detail.userInfo.avatarUrl,
-        userInfo: e.detail.userInfo,
-        isLoggin: true
-      })
-  },
-
-  handleSend: function() {
-    if(this.data.inputValue.trim() === '') {
-      return wx.showToast({
-        icon: 'none',
-        title: '消息不能为空',
+        userInfo: e.detail.userInfo
       })
     }
-    wx.cloud.callFunction({
-      name: 'chat',
-      data: {
-        nickname: this.data.userInfo.nickName,
-        avatarUrl: this.data.userInfo.avatarUrl,
-        message: this.data.inputValue
-      }
-    }).then(res => {
-      this.setData({inputValue: ''})  // 发送成功后清空输入框
-    }).catch(console.error)
   },
 
-  onInput: function(e) {
-    this.setData({
-      inputValue: e.detail.value
+  onGetOpenid: function() {
+    // 调用云函数
+    wx.cloud.callFunction({
+      name: 'login',
+      data: {},
+      success: res => {
+        console.log('[云函数] [login] user openid: ', res.result.openid)
+        app.globalData.openid = res.result.openid
+        wx.navigateTo({
+          url: '../userConsole/userConsole',
+        })
+      },
+      fail: err => {
+        console.error('[云函数] [login] 调用失败', err)
+        wx.navigateTo({
+          url: '../deployFunctions/deployFunctions',
+        })
+      }
     })
   },
 
-  onHide: function() {
-    app.globalData.watcher && app.globalData.watcher.close()
-      .then(() => {
-        app.globalData.watcher = null
-      })
-  }
+  // 上传图片
+  doUpload: function () {
+    // 选择图片
+    wx.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: function (res) {
+        wx.showLoading({
+          title: '上传中',
+        })
+
+        const filePath = res.tempFilePaths[0]
+        
+        // 上传图片
+        const cloudPath = `my-image${filePath.match(/\.[^.]+?$/)[0]}`
+        wx.cloud.uploadFile({
+          cloudPath,
+          filePath,
+          success: res => {
+            console.log('[上传文件] 成功：', res)
+
+            app.globalData.fileID = res.fileID
+            app.globalData.cloudPath = cloudPath
+            app.globalData.imagePath = filePath
+            
+            wx.navigateTo({
+              url: '../storageConsole/storageConsole'
+            })
+          },
+          fail: e => {
+            console.error('[上传文件] 失败：', e)
+            wx.showToast({
+              icon: 'none',
+              title: '上传失败',
+            })
+          },
+          complete: () => {
+            wx.hideLoading()
+          }
+        })
+      },
+      fail: e => {
+        console.error(e)
+      }
+    })
+  },
 
 })

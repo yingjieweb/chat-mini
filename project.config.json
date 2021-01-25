@@ -38,9 +38,8 @@
     "minifyWXSS": true
   },
   "appid": "wxc74d940772267fd0",
-  "projectname": "chat-mini",
+  "projectname": "train-mini",
   "libVersion": "2.14.1",
-  "cloudfunctionTemplateRoot": "cloudfunctionTemplate",
   "condition": {
     "search": {
       "list": []
