@@ -21,6 +21,27 @@
     "navigationBarTitleText": "萌新军训团",
     "navigationBarTextStyle": "black"
   },
+  "tabBar": {
+    "selectedColor": "#229DDD",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/openapi/openapi",
+        "text": "openapi"
+      },
+      {
+        "pagePath": "pages/addFunction/addFunction",
+        "text": "addFunction"
+      },
+      {
+        "pagePath": "pages/deployFunctions/deployFunctions",
+        "text": "deployFunctions"
+      }
+    ]
+  },
   "sitemapLocation": "sitemap.json",
   "style": "v2"
 }
